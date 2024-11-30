@@ -66,11 +66,11 @@ async def command_start_handler(message: Message) -> None:
     await message.answer(greeting)
     
     
-    cl.new_user(tgID=message.from_user.id, name=message.from_user.full_name, date_start=datetime.now(), model=5)
+    cl.model.new_user(tgID=message.from_user.id, name=message.from_user.full_name, date_start=datetime.now(), model=5)
 # Обработчики команд
 @dp.message(Command("buy"))
 async def cmd_buy(message: Message):
-    payment_url = cl.create_check(tgID=message.from_user.id, value='1', description='Подписка на телеграмм-бота')
+    payment_url = cl.create_check(tgID=message.from_user.id, value='1', description='1')
     if payment_url == 'у вас есть подписка':
         await message.answer(f'✅ У вас уже оформлена подписка')
     else:
@@ -83,8 +83,14 @@ async def cmd_buy(message: Message):
 
 # # Обработчик callback запросов
 @dp.callback_query(lambda c: c.data == 'confirm_subscription')
-async def process_callback_get_image(callback: CallbackQuery):
-     await callback.answer(f"оплата подтверждена")
+async def process_callback_answer(callback_query: CallbackQuery):
+     tgID = callback_query.from_user.id
+     payment_id = cl.model.get_payment_id(tgID, 1)
+     payment_status = cl.payments.check_payment(payment_id=payment_id)
+     if payment_status == 'succeeded':
+        cl.model.update_payment_status(payment_status, payment_id)
+        await callback_query.answer(f"оплата подтверждена")
+        await callback_query.message.edit_text(f"оплата подтверждена", reply_markup=None)
 
 @dp.message(Command("choose_model"))
 async def choose_model(message: Message):

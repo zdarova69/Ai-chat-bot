@@ -3,15 +3,10 @@ import json
 from yookassa import Configuration, Payment
 from api import account_id, secret_key
 
-class Ukassa():
+class Payments():
     def __init__(self):
         Configuration.account_id = account_id
         Configuration.secret_key = secret_key
-
-class Payments(Ukassa):
-    def __init__(self):
-        super().__init__()
-
     def payment(self, value, description):
         payment = Payment.create({
             "amount": {
@@ -45,7 +40,9 @@ class Payments(Ukassa):
             }
         })  # Добавлена закрывающая скобка
         return json.loads(payment.json())
-
+    def check_payment(self, payment_id):
+        payment = Payment.find_one(payment_id=payment_id)
+        return payment['status']
 	
 # a = payment('1','Оплата подписки на бота тест')
 # print(a)
