@@ -89,6 +89,7 @@ async def process_callback_answer(callback_query: CallbackQuery):
      payment_status = cl.payments.check_payment(payment_id=payment_id)
      if payment_status == 'succeeded':
         cl.model.update_payment_status(payment_status, payment_id)
+        cl.model.add_subscriptions(1, tgID, payment_id)
         await callback_query.answer(f"оплата подтверждена")
         await callback_query.message.edit_text(f"оплата подтверждена", reply_markup=None)
 
@@ -119,13 +120,13 @@ async def process_callback(callback_query: CallbackQuery):
 }
 
     cl = Client()
-    cl.change_model(tgID=tgID, model=models[model])
+    cl.model.change_model(tgID=tgID, model=models[model])
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
     help_message = '''
 /buy - оформить подписку и поддержать работу бота
-/gen_image - сгенерировать картинку
+/gen_image - сгенерировать картинку ПОКА НЕ РАБОТАЕТ
 /choose_model - выбор модели
 техподдержка - @zdarova_69
         '''

@@ -1,19 +1,19 @@
 from abc import ABC, abstractmethod
-from openai import OpenAI
-from api import proxy_api
 
-# Интерфейс для всех моделей
-class AiModel(ABC):
-    @abstractmethod
-    def generate(self, prompt: str) -> str:
-        pass
+from openai import OpenAI
+
+from gigachat import GigaChat
+from gigachat.models import Chat, Messages, MessagesRole
+
+from api import proxy_api, gigachat_api
+
 
 # Класс для конкретной модели
-class OpenAIModel(AiModel):
+class OpenAIModel():
     def __init__(self, model_name: str, base_url: str) -> None:
         self.model_name = model_name
         self.base_url = base_url
-    
+        
     def generate(self, prompt: str) -> str:
         # Здесь можно разместить логику для отправки запроса на API
         client = OpenAI(
@@ -30,6 +30,23 @@ class OpenAIModel(AiModel):
 
 
         return completion.choices[0].message.content
+    def generate_gigachat(self, prompt: str):
+        payload = Chat(
+            messages=[
+                Messages(
+                    role=MessagesRole.SYSTEM,
+                    content="Ты - чат-бот ассистент"
+                )
+            ],
+            temperature=0.7,
+            max_tokens=1000,
+        )
+        giga = GigaChat(credentials=gigachat_api, 
+                        # model="GigaChat-Pro", 
+                        verify_ssl_certs=False)
+        payload.messages.append(Messages(role=MessagesRole.USER, content=prompt))
+        response = giga.chat(payload)
+        return response.choices[0].message.content
 
 # # Класс для хранения всех моделей и доступа к ним
 # class ModelRegistry:

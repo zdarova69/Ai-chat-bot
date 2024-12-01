@@ -109,4 +109,8 @@ class UserModel(Model):
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', PaymentID, status, description, tgID, value, created_at, payment_url)
         print('запись добавлена')
-    
+    def add_subscriptions(self, type, tgID, paymentID):
+        self.execute_query('''
+                           INSERT into subscriptions (type, tgID, paymentID) 
+                           VALUES (?, ?, ?)
+                           ''',type, tgID, paymentID)
