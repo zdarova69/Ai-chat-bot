@@ -180,7 +180,7 @@ async def process_callback_answer(callback_query: CallbackQuery):
         await callback_query.message.reply(image_url)
         await callback_query.answer(f"Оплата подтверждена")
         await callback_query.message.edit_text(f"Оплата подтверждена", reply_markup=None)
-        cl.model.update_image_url(paymentID, payment_status)
+        cl.model.update_image_url(paymentID, image_url)
     else:
         await callback_query.answer(f"Оплата не выполнена")
 
