@@ -1,9 +1,6 @@
-
-from api import account_id, secret_key, proxy_api
-import sqlite3
-from openai import OpenAI
 from payments import Payments
 from aimodels import OpenAIModel
+import re
 
 from db import UserModel
 
@@ -52,6 +49,9 @@ class Client():
                         value = payment_check['amount']['value']
                         created_at = payment_check['created_at']
                         
+                        # Удаляем временную зону и заменяем 'T' на пробел
+                        created_at = re.sub(r'\.\d{3}Z$', '', created_at).replace('T', ' ')
+                                                
                         if status == 'canceled':  
                             status = payment_check['status']
                             print('обновляем')
@@ -72,6 +72,9 @@ class Client():
                     created_at = payment_check['created_at']
                     # Если записи не существует, добавляем новую запись
                     status = payment_check['status']
+
+                    # Удаляем временную зону и заменяем 'T' на пробел
+                    created_at = re.sub(r'\.\d{3}Z$', '', created_at).replace('T', ' ')
 
                     self.model.add_payment(PaymentID, status, description, tgID, value, created_at, payment_url)
                         
@@ -95,9 +98,9 @@ class Client():
     def generate_answer(self, tgID, prompt:str): 
 
         model_number = self.model.get_model(tgID, column='model')
-        
+        print(model_number)
 
-        return self.aimodel.generate_text(model_name=self.aimodel.model_list[model_number]['name'], base_url=self.aimodel.model_list[model_number]['base_url'], prompt=prompt)
+        return self.aimodel.generate_text(model_name=self.aimodel.model_list[model_number]['name'], base_url=self.aimodel.model_list[model_number]['base_url'], prompt=prompt, api=self.aimodel.model_list[model_number]['api'])
     
     def take_image(self, tgID, prompt:str): 
        

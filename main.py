@@ -8,13 +8,13 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types.web_app_info import WebAppInfo   
 from aiogram.filters import Command
 
 
 from datetime import datetime
 # from gen_message import generate_messange
 from client import Client
-from payments import Payments
 # Открываем файл в режиме чтения
 with open('tg_api.txt', 'r') as file:
     # Читаем содержимое файла
@@ -74,7 +74,8 @@ async def cmd_buy(message: Message):
     if payment_url == 'у вас есть подписка':
         await message.answer(f'✅ У вас уже оформлена подписка')
     else:
-        buttons = [[InlineKeyboardButton(text="Оплатить подписку", url=payment_url)],
+        print('payment_url')
+        buttons = [[InlineKeyboardButton(text="Оплатить подписку",web_app=WebAppInfo(url=payment_url))],
                 [InlineKeyboardButton(text="Подтвердить оплату", callback_data="confirm_subscription")]
         ]
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
@@ -86,7 +87,7 @@ async def cmd_buy(message: Message):
 async def process_callback_answer(callback_query: CallbackQuery):
      tgID = callback_query.from_user.id
      payment_id = cl.model.get_payment_id(tgID, 1)
-     payment_status = cl.payments.check_payment(payment_id=payment_id)
+     payment_status = cl.payments.check_payment_status(payment_id=payment_id)
      if payment_status == 'succeeded':
         cl.model.update_payment_status(payment_status, payment_id)
         cl.model.add_subscriptions(1, tgID, payment_id)
@@ -99,6 +100,7 @@ async def choose_model(message: Message):
         [InlineKeyboardButton(text="OpenAI GPT-4.0", callback_data="OpenAI GPT-4.0")],
         [InlineKeyboardButton(text="OpenAI o1", callback_data="OpenAI o1")],
         [InlineKeyboardButton(text="Google Gemini", callback_data="Google Gemini")],
+        [InlineKeyboardButton(text="Deepseek", callback_data="Deepseek")],
         [InlineKeyboardButton(text="DALL-E 3.0", callback_data="DALL-E 3.0")],
         [InlineKeyboardButton(text="Kandinsky", callback_data="Kandinsky")],
         [InlineKeyboardButton(text="dall-e-2", callback_data="dall-e-2")]
@@ -158,9 +160,11 @@ async def img(message: Message):
     tgID = message.from_user.id
     prompt = message.text
     paymentID, payment_url = cl.create_check(tgID=tgID, value=amount, description='2')
+
+    print(payment_url)
     cl.model.add_image(tgID, paymentID, prompt)
     buttons = [
-        [InlineKeyboardButton(text="Оплатить подписку", url=payment_url)],
+        [InlineKeyboardButton(text="Оплатить подписку",web_app=WebAppInfo(url=payment_url))],
         [InlineKeyboardButton(text="Подтвердить оплату", callback_data=f"confirm_image:{paymentID}")]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
@@ -171,7 +175,7 @@ async def img(message: Message):
 async def process_callback_answer(callback_query: CallbackQuery):
     tgID = callback_query.from_user.id
     _, paymentID = callback_query.data.split(':')
-    payment_status = cl.payments.check_payment(payment_id=paymentID)
+    payment_status = cl.payments.check_payment_status(payment_id=paymentID)
     if payment_status == 'succeeded':
         cl.model.update_payment_status(payment_status, paymentID)
         prompt = cl.model.get_prompt_by_payment_id(paymentID)
