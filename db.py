@@ -1,4 +1,5 @@
 import pymysql
+import json
 
 class Model:
     def __init__(self) -> None:
@@ -129,17 +130,45 @@ class UserModel(Model):
             WHERE tgID = %s AND description = %s
         '''
         return self.execute_query(query, tgID, description, fetch_one=True)
+    
+    def check_user_subscription(self, tgID):
+        """
+        Проверяет, существует ли запись в таблице subscriptions по tgID
+        """
+        query = '''
+            SELECT * FROM subscriptions 
+            WHERE tgID = %s 
+        '''
+        return self.execute_query(query, tgID, fetch_one=True)
+    
+    def select_messages(self, tgID):
+        query = """
+            SELECT messages 
+            FROM users
+            WHERE tgID = %s
+        """
+        messages = self.execute_query(query, tgID, fetch_one=True)
+        messages_dict = json.loads(messages)
+        return messages_dict
+        
+    def update_context_clear(self, tgID):
+        query = '''
+            UPDATE users
+            SET messages = '[{"role": "system", "content": "ты - чат-бот ассистент."}]'
+            WHERE tgID = %s;
+        '''
+        self.execute_query(query, tgID)
 
-    def update_payment(self, PaymentID, status, value, created_at, payment_url, tgID, description):
+    def update_payment(self, PaymentID, status, value, created_at, expires_at, payment_url, tgID, description):
         """
         Обновляет запись в таблице payments.
         """
         query = '''
             UPDATE payments
-            SET paymentID = %s, status = %s, value = %s, created_at = %s, payment_url = %s
+            SET paymentID = %s, status = %s, value = %s, created_at = %s, expires_at = %s, payment_url = %s
             WHERE tgID = %s AND description = %s
         '''
-        self.execute_query(query, PaymentID, status, value, created_at, payment_url, tgID, description)
+        self.execute_query(query, PaymentID, status, value, created_at, expires_at, payment_url, tgID, description)
         print('Запись изменена')
 
     def update_payment_status(self, status, PaymentID):
@@ -177,7 +206,14 @@ class UserModel(Model):
         '''
         self.execute_query(query, new_image_url, paymentID)
         print(f"Обновлен image_url для paymentID: {paymentID}")
-
+    def update_messages(self, tgID, messages):
+        json_messages = json.dumps(messages)
+        query = """
+            UPDATE users
+            SET messages = %s
+            WHERE tgID = %s
+        """
+        self.execute_query(query, json_messages, tgID)
     def new_user(self, tgID, name, date_start, model, imageModel):
         """
         Добавляет нового пользователя в таблицу users.
@@ -190,15 +226,15 @@ class UserModel(Model):
         self.execute_query(query, tgID, name, date_start, model, imageModel)
         print('Данные сохранены')
 
-    def add_payment(self, PaymentID, status, description, tgID, value, created_at, payment_url):
+    def add_payment(self, PaymentID, status, description, tgID, value, created_at, expires_at, payment_url):
         """
         Добавляет новую запись в таблицу payments.
         """
         query = '''
-            INSERT INTO payments (paymentID, status, description, tgID, value, created_at, payment_url)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO payments (paymentID, status, description, tgID, value, created_at, expires_at, payment_url)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         '''
-        self.execute_query(query, PaymentID, status, description, tgID, value, created_at, payment_url)
+        self.execute_query(query, PaymentID, status, description, tgID, value, created_at, expires_at, payment_url)
         print('Запись добавлена')
 
     def add_subscriptions(self, type, tgID, paymentID):

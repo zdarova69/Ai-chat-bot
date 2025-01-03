@@ -4,6 +4,7 @@ from openai import OpenAI
 
 import requests
 import json
+from pathlib import Path
 
 from gigachat import GigaChat
 from gigachat.models import Chat, Messages, MessagesRole
@@ -54,25 +55,34 @@ class OpenAIModel():
         'base_url': 'https://api.proxyapi.ru/openai/v1',
         'api': PROXY_API_KEY
     },
+    9:{
+        'name': 'tts-1',
+        'base_url': 'https://api.proxyapi.ru/openai/v1',
+        'api': PROXY_API_KEY
+
+    },
+    10:{
+        'name': 'tts-1-hd',
+        'base_url': 'https://api.proxyapi.ru/openai/v1',
+        'api': PROXY_API_KEY
+
+    }
 } 
-    def generate_text(self,model_name: str, base_url: str, prompt: str, api: str) -> str:
+    def generate_text(self,model_name: str, base_url: str, prompt: str, api: str, messages: list ) -> str:
+        # Добавляем новый запрос пользователя
+        messages.append({"role": "user", "content": prompt})
+        
         if model_name == 'Sber GigaChat':
             payload = Chat(
-                messages=[
-                    Messages(
-                        role=MessagesRole.SYSTEM,
-                        content="Ты - чат-бот ассистент"
-                    )
-                ],
+                messages=messages,
                 temperature=0.7,
                 max_tokens=1000,
             )
             giga = GigaChat(credentials=api, 
-                            # model="GigaChat-Pro", 
+                            model="GigaChat-Pro", 
                             verify_ssl_certs=False)
-            payload.messages.append(Messages(role=MessagesRole.USER, content=prompt))
             response = giga.chat(payload)
-            return response.choices[0].message.content
+            return messages, response.choices[0].message.content
         elif model_name == 'gemini-1.5-flash':
             
             # Заголовки запроса
@@ -99,16 +109,19 @@ class OpenAIModel():
                 api_key=api,
                 base_url=base_url,
             )
-
+            
+            # Выполняем запрос к модели
             completion = client.chat.completions.create(
-                model = model_name,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-                )
+                model=model_name,
+                messages=messages
+            )
+            
+            content = completion.choices[0].message.content
+            # Добавляем ответ ассистента в messages
+            messages.append({"role": "assistant", "content": content})
 
-
-            return completion.choices[0].message.content
+            # Возвращаем обновлённый список messages
+            return messages, content
 
     def generate_image(self,model_name: str, base_url: str, prompt: str) -> str:
         client = OpenAI(
@@ -128,6 +141,20 @@ class OpenAIModel():
 
     )
         return response.data[0].url
+    
+    def generate_audio(self,model_name: str, base_url: str, prompt: str) -> str:
+        client = OpenAI(api_key=PROXY_API_KEY, base_url="base_url")
+
+        speech_file_path = Path(__file__).parent / "speech.mp3"
+        response = client.audio.speech.create(
+        model="tts-1",
+        voice="alloy",
+        input="собаки бессмертны 320 дней"
+        )
+
+        response.stream_to_file(speech_file_path)
+
+        return speech_file_path
 # # Класс для хранения всех моделей и доступа к ним
 # class ModelRegistry:
 #     def __init__(self) -> None:

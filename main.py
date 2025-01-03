@@ -60,6 +60,7 @@ async def command_start_handler(message: Message) -> None:
 /buy - оформить подписку и поддержать работу бота
 /gen_image *ваш промпт* - сгенерировать картинку
 /choose_model - выбор модели
+/clear_context - очистить контекст
 
 Удачи и успеха в твоих начинаниях! 💻🎉
 '''
@@ -96,19 +97,28 @@ async def process_callback_answer(callback_query: CallbackQuery):
 
 @dp.message(Command("choose_model"))
 async def choose_model(message: Message):
-    buttons = [[InlineKeyboardButton(text="Sber GigaChat", callback_data="Sber GigaChat")],
-        [InlineKeyboardButton(text="OpenAI GPT-4.0", callback_data="OpenAI GPT-4.0")],
-        [InlineKeyboardButton(text="OpenAI o1", callback_data="OpenAI o1")],
-        [InlineKeyboardButton(text="Google Gemini", callback_data="Google Gemini")],
-        [InlineKeyboardButton(text="Deepseek", callback_data="Deepseek")],
-        [InlineKeyboardButton(text="DALL-E 3.0", callback_data="DALL-E 3.0")],
-        [InlineKeyboardButton(text="Kandinsky", callback_data="Kandinsky")],
-        [InlineKeyboardButton(text="dall-e-2", callback_data="dall-e-2")]
-    ]
+    has_subscription = cl.model.check_user_subscription(message.from_user.id)
+    if has_subscription is not None:
+        buttons = [[InlineKeyboardButton(text="Sber GigaChat", callback_data="Sber GigaChat")],
+            [InlineKeyboardButton(text="OpenAI GPT-4.0", callback_data="OpenAI GPT-4.0")],
+            [InlineKeyboardButton(text="OpenAI o1", callback_data="OpenAI o1")],
+            [InlineKeyboardButton(text="Google Gemini", callback_data="Google Gemini")],
+            [InlineKeyboardButton(text="Deepseek", callback_data="Deepseek")],
+            [InlineKeyboardButton(text="DALL-E 3.0", callback_data="DALL-E 3.0")],
+            [InlineKeyboardButton(text="Kandinsky", callback_data="Kandinsky")],
+            [InlineKeyboardButton(text="dall-e-2", callback_data="dall-e-2")],
+            [InlineKeyboardButton(text="tts-1", callback_data="tts-1")],
+            [InlineKeyboardButton(text="tts-1-hd", callback_data="tts-1-hd")]
+        ]
+    else:
+        buttons = [[InlineKeyboardButton(text="Sber GigaChat", callback_data="Sber GigaChat")],
+            [InlineKeyboardButton(text="DALL-E 3.0", callback_data="DALL-E 3.0")],
+            [InlineKeyboardButton(text="dall-e-2", callback_data="dall-e-2")]
+        ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
     await message.answer('Выберите модель', reply_markup=keyboard)
 
-@dp.callback_query(lambda c: c.data in ["Sber GigaChat", "OpenAI GPT-4.0", "OpenAI o1", "Google Gemini", "Deepseek",  "DALL-E 3.0", "Kandinsky", "dall-e-2"])
+@dp.callback_query(lambda c: c.data in ["Sber GigaChat", "OpenAI GPT-4.0", "OpenAI o1", "Google Gemini", "Deepseek",  "DALL-E 3.0", "Kandinsky", "dall-e-2", "tts-1", "tts-1-hd"])
 async def process_callback(callback_query: CallbackQuery):
     tgID = callback_query.from_user.id
     model = callback_query.data
@@ -148,6 +158,14 @@ async def process_callback(callback_query: CallbackQuery):
     "dall-e-2": {
         "id": 8,
         "column": "imageModel"
+    },
+    "tts-1": {
+        "id": 9,
+        "column": "audioModel"
+    },
+    "tts-1-hd": {
+        "id": 10,
+        "column": "audioModel"
     }
 }
         
@@ -164,7 +182,7 @@ async def img(message: Message):
     print(payment_url)
     cl.model.add_image(tgID, paymentID, prompt)
     buttons = [
-        [InlineKeyboardButton(text="Оплатить подписку",web_app=WebAppInfo(url=payment_url))],
+        [InlineKeyboardButton(text="Оплатить",web_app=WebAppInfo(url=payment_url))],
         [InlineKeyboardButton(text="Подтвердить оплату", callback_data=f"confirm_image:{paymentID}")]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
@@ -194,10 +212,15 @@ async def cmd_help(message: Message):
 /buy - оформить подписку и поддержать работу бота
 /gen_image - сгенерировать картинку ПОКА НЕ РАБОТАЕТ
 /choose_model - выбор модели
+/clear_context - очистить контекст
 техподдержка - @zdarova_69
         '''
     await message.reply(help_message)
 
+@dp.message(Command("clear_context"))
+async def cmd_clear_context(message: Message):
+    cl.model.update_context_clear(message.from_user.id)
+    await message.reply('контекст очищен! ✅')
 
 @dp.message()
 async def message_handler(message: Message) -> None:
