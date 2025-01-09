@@ -1,18 +1,16 @@
 import asyncio
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, FSInputFile
 from aiogram.types.web_app_info import WebAppInfo   
 from aiogram.filters import Command
 
-
-from datetime import datetime
 # from gen_message import generate_messange
 from client import Client
 # Открываем файл в режиме чтения
@@ -34,31 +32,36 @@ async def command_start_handler(message: Message) -> None:
     This handler receives messages with `/start` command
     """
     greeting = '''
-🚀 Приветствую тебя дорогой друг. 🌟
+Ваш личный мультифункциональный помощник с доступом к лучшим языковым моделям и инструментам искусственного интеллекта!
 
-🤖 Я - чат бот, работающий с большими языковыми моделями, а именно:
+📌 Что умеет бот:
 
-✅ **OpenAI ChatGPT и DALL-E**
-   - **ChatGPT**: Это мощная языковая модель, способная генерировать человекоподобный текст на основе входных данных. Она может отвечать на вопросы, вести диалог, создавать истории и многое другое.
-   - **DALL-E**: Это модель, способная создавать изображения на основе текстовых описаний. Она может генерировать уникальные и креативные изображения, соответствующие заданным описаниям.
-   - **OpenAI O1**: Это оптимизированная модель для обработки естественного языка, разработанная OpenAI. Она предназначена для высокопроизводительных задач, таких как анализ текста, классификация и извлечение информации. OpenAI O1 обеспечивает быструю и эффективную обработку данных, что делает её идеальной для приложений, требующих высокой скорости и точности.
+Общение и помощь: Используйте мощь ChatGPT, DeepSeek, Gemini и GigaChat для решения задач, генерации идей, написания текстов, обучения и многого другого.
 
-✅ **Sber Gigachat и Kandinsky 3.1**
-   - **Gigachat**: Это российская языковая модель, разработанная Сбербанком. Она обладает высокой способностью к пониманию и генерации текста на русском языке.
-   - **Kandinsky 3.1**: Это модель для генерации изображений, названная в честь русского художника Казимира Малевича. Она способна создавать абстрактные и художественные изображения на основе текстовых описаний.
+Создание изображений: Генерируйте уникальные изображения с помощью DALL-E по вашему запросу.
 
-✅ **Google Gemini**
-   - **Gemini**: Это многофункциональная модель искусственного интеллекта от Google, которая объединяет в себе возможности обработки естественного языка, генерации изображений и других задач. Она способна выполнять широкий спектр задач, от диалога до анализа данных.
+Мультимодельность: Выбирайте, какая модель лучше подходит для вашей задачи, или сравнивайте ответы от разных ИИ.
 
-✅ **Deepseek**
-   - **Deepseek**: Это модель, специализирующаяся на глубоком поиске и анализе информации. Она способна извлекать ценные данные из больших объемов текста, помогая в исследованиях и анализе данных.
+Удобство: Все возможности AI в одном месте, доступные прямо в Telegram.
 
-🔍 Чем могу помочь? Вот несколько вещей, которые ты можешь узнать или сделать прямо сейчас:
+✨ Почему этот бот?
+
+Мощь нескольких AI: Больше не нужно переключаться между сервисами — всё в одном боте.
+
+Простота использования: Интуитивный интерфейс и мгновенные ответы.
+
+Универсальность: Подходит для работы, творчества, обучения и развлечений.
+
+🚀 Начните прямо сейчас!
+Отправьте боту запрос, выберите модель и получите результат. Создавайте тексты, изображения, решайте задачи и открывайте новые возможности с AI!
+
+👉 Добавьте бота в Telegram и станьте частью будущего уже сегодня!
 
 /start - Начать общение с ботом
 /help - Получить помощь и список доступных команд
-/buy - оформить подписку и поддержать работу бота
+/subscription - оформить подписку и поддержать работу бота
 /gen_image *ваш промпт* - сгенерировать картинку
+/gen_sound *ваш промпт* - сгенерировать голосовое сообщение
 /choose_model - выбор модели
 /clear_context - очистить контекст
 
@@ -69,19 +72,49 @@ async def command_start_handler(message: Message) -> None:
     
     cl.model.new_user(tgID=message.from_user.id, name=message.from_user.full_name, date_start=datetime.now(), model=5, imageModel=8)
 # Обработчики команд
-@dp.message(Command("buy"))
+@dp.message(Command("subscription"))
 async def cmd_buy(message: Message):
-    payment_url = cl.create_check(tgID=message.from_user.id, value='1', description='1')
-    if payment_url == 'у вас есть подписка':
-        await message.answer(f'✅ У вас уже оформлена подписка')
-    else:
-        print('payment_url')
-        buttons = [[InlineKeyboardButton(text="Оплатить подписку",web_app=WebAppInfo(url=payment_url))],
-                [InlineKeyboardButton(text="Подтвердить оплату", callback_data="confirm_subscription")]
+    
+    buttons = [[InlineKeyboardButton(text="Пробный период (7 дней)", callback_data="limited")],
+                [InlineKeyboardButton(text="Бессрочная подписка", callback_data="unlimited")]
         ]
-        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
-        # Отправляем сообщение с кнопкой
-        await message.answer(f'Совершите оплату подписки 1 руб.', reply_markup=keyboard)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
+    
+    await message.answer(f'Выберите подписку', reply_markup=keyboard)
+    
+# Обработчик callback запросов
+@dp.callback_query(lambda c: c.data in ["limited", "unlimited"])
+async def process_callback_answer(callback_query: CallbackQuery):
+    if callback_query.data == 'unlimited':
+        # создаем платеж
+        payment_url = cl.create_check(tgID=callback_query.from_user.id, value='1', description='1')
+        if payment_url == 'у вас есть подписка':
+            await callback_query.answer(f'✅ У вас уже оформлена подписка')
+            await callback_query.message.edit_text(f'✅ У вас уже оформлена подписка')
+        else:
+            print('payment_url')
+            buttons = [[InlineKeyboardButton(text="Оплатить подписку",web_app=WebAppInfo(url=payment_url))],
+                    [InlineKeyboardButton(text="Подтвердить оплату", callback_data="confirm_subscription")]
+            ]
+            keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
+            # Отправляем сообщение с кнопкой
+            await callback_query.answer(f'Совершите оплату подписки 1 руб.', reply_markup=keyboard)
+            await callback_query.message.edit_text(f'Совершите оплату подписки 1 руб.', reply_markup=keyboard)
+    else:
+        has_lim_sub = cl.model.select_lim(callback_query.from_user.id, 'hasLimitedSubscription')
+        if has_lim_sub == 1:
+            # Текущая дата и время
+            now = datetime.now()
+
+            # Добавляем 7 дней
+            end_date = now + timedelta(days=7)
+            
+            cl.model.add_subscriptions(2, callback_query.from_user.id, end_Date=end_date)
+            await callback_query.answer(f'Активирована пробная подписка')
+            await callback_query.message.edit_text(f'Активирована пробная подписка')
+            cl.model.update_lim(callback_query.from_user.id, 'hasLimitedSubscription')
+        else:
+            await callback_query.message.edit_text(f'Вы уже активировали тестовую подписку')
 
 # Обработчик callback запросов
 @dp.callback_query(lambda c: c.data == 'confirm_subscription')
@@ -98,14 +131,14 @@ async def process_callback_answer(callback_query: CallbackQuery):
 @dp.message(Command("choose_model"))
 async def choose_model(message: Message):
     has_subscription = cl.model.check_user_subscription(message.from_user.id)
-    if has_subscription is not None:
+    if 1 in has_subscription:
         buttons = [[InlineKeyboardButton(text="Sber GigaChat", callback_data="Sber GigaChat")],
             [InlineKeyboardButton(text="OpenAI GPT-4.0", callback_data="OpenAI GPT-4.0")],
             [InlineKeyboardButton(text="OpenAI o1", callback_data="OpenAI o1")],
             [InlineKeyboardButton(text="Google Gemini", callback_data="Google Gemini")],
             [InlineKeyboardButton(text="Deepseek", callback_data="Deepseek")],
             [InlineKeyboardButton(text="DALL-E 3.0", callback_data="DALL-E 3.0")],
-            [InlineKeyboardButton(text="Kandinsky", callback_data="Kandinsky")],
+            [InlineKeyboardButton(text="Sber GigaChat для генерации изображений", callback_data="Sber GigaChat для генерации изображений")],
             [InlineKeyboardButton(text="dall-e-2", callback_data="dall-e-2")],
             [InlineKeyboardButton(text="tts-1", callback_data="tts-1")],
             [InlineKeyboardButton(text="tts-1-hd", callback_data="tts-1-hd")]
@@ -118,7 +151,7 @@ async def choose_model(message: Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
     await message.answer('Выберите модель', reply_markup=keyboard)
 
-@dp.callback_query(lambda c: c.data in ["Sber GigaChat", "OpenAI GPT-4.0", "OpenAI o1", "Google Gemini", "Deepseek",  "DALL-E 3.0", "Kandinsky", "dall-e-2", "tts-1", "tts-1-hd"])
+@dp.callback_query(lambda c: c.data in ["Sber GigaChat", "OpenAI GPT-4.0", "OpenAI o1", "Google Gemini", "Deepseek",  "DALL-E 3.0", "Sber GigaChat для генерации изображений", "dall-e-2", "tts-1", "tts-1-hd"])
 async def process_callback(callback_query: CallbackQuery):
     tgID = callback_query.from_user.id
     model = callback_query.data
@@ -151,7 +184,7 @@ async def process_callback(callback_query: CallbackQuery):
         "id": 6,
         "column": "imageModel"
     },
-    "Kandinsky": {
+    "Sber GigaChat для генерации изображений": {
         "id": 7,
         "column": "imageModel"
     },
@@ -177,34 +210,78 @@ async def img(message: Message):
     amount = '5'
     tgID = message.from_user.id
     prompt = message.text
-    paymentID, payment_url = cl.create_check(tgID=tgID, value=amount, description='2')
-
-    print(payment_url)
-    cl.model.add_image(tgID, paymentID, prompt)
-    buttons = [
-        [InlineKeyboardButton(text="Оплатить",web_app=WebAppInfo(url=payment_url))],
-        [InlineKeyboardButton(text="Подтвердить оплату", callback_data=f"confirm_image:{paymentID}")]
-    ]
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
-    await message.answer(f'Проведите оплату в размере {amount} рублей', reply_markup=keyboard)
     
-    # # Обработчик callback запросов
-@dp.callback_query(lambda c: c.data.startswith('confirm_image:'))
+    # Проверяем, есть ли у пользователя бесплатные генерации
+    has_free_pic = cl.model.select_lim(tgID, 'hasFreePicture')
+    paymentID, payment_url = cl.create_check(tgID=tgID, value=amount, description='2')
+    
+    # Создаем кнопки
+    buttons = [
+        [InlineKeyboardButton(text="💳 Оплатить", web_app=WebAppInfo(url=payment_url))],
+        [InlineKeyboardButton(text="✅ Подтвердить оплату", callback_data=f"confirm_image:{paymentID}")]
+    ]
+    
+    # Отправляем сообщение с промптом и информацией о бесплатных генерациях
+    await message.answer(f'🎨 Ваш промпт: {prompt}')
+ 
+    
+    # Если есть бесплатные генерации, добавляем кнопку для их использования
+    if has_free_pic == 1:
+        buttons.append([InlineKeyboardButton(text="🆓 Использовать бесплатную генерацию", callback_data=f"use_free_image:{paymentID}")])
+    
+    # Добавляем запись о генерации в базу данных
+    cl.model.add_image(tgID, paymentID, prompt)
+    
+    # Отправляем сообщение с кнопками
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
+    await message.answer(f"""🎁 У вас есть {has_free_pic} бесплатных генераций.
+💸 Проведите оплату в размере {amount} рублей""", reply_markup=keyboard)
+
+
+# Обработчик callback запросов
+@dp.callback_query(lambda c: c.data.startswith(('confirm_image:', 'use_free_image:')))
 async def process_callback_answer(callback_query: CallbackQuery):
     tgID = callback_query.from_user.id
-    _, paymentID = callback_query.data.split(':')
-    payment_status = cl.payments.check_payment_status(payment_id=paymentID)
-    if payment_status == 'succeeded':
-        cl.model.update_payment_status(payment_status, paymentID)
-        prompt = cl.model.get_prompt_by_payment_id(paymentID)
-        image_url = cl.take_image(tgID, prompt)
- 
-        await callback_query.message.reply(image_url)
-        await callback_query.answer(f"Оплата подтверждена")
-        await callback_query.message.edit_text(f"Оплата подтверждена", reply_markup=None)
-        cl.model.update_image_url(paymentID, image_url)
-    else:
-        await callback_query.answer(f"Оплата не выполнена")
+    action, paymentID = callback_query.data.split(':')
+    
+    if action == "confirm_image":
+        # Обработка подтверждения оплаты
+        payment_status = cl.payments.check_payment_status(payment_id=paymentID)
+        if payment_status == 'succeeded':
+            # Уведомляем пользователя о начале генерации
+            await callback_query.message.answer("🔄 Начинаем генерацию изображения...")
+            
+            cl.model.update_payment_status(payment_status, paymentID)
+            prompt = cl.model.get_prompt_by_payment_id(paymentID)
+            image_url = cl.take_image(tgID, prompt)
+            # Открываем файл в бинарном режиме
+            content = FSInputFile('content.jpg')
+            await callback_query.message.answer_photo(photo=content)
+            await callback_query.answer(f"✅ Оплата подтверждена")
+            await callback_query.message.edit_text(f"✅ Оплата подтверждена", reply_markup=None)
+            cl.model.update_image_url(paymentID, image_url)
+        else:
+            await callback_query.answer(f"❌ Оплата не выполнена")
+    
+    elif action == "use_free_image":
+        has_free_pic = cl.model.select_lim(tgID, 'hasFreePicture')
+        if has_free_pic == 0:
+            await callback_query.answer(f"🎉 Бесплатная генерация использована")
+        else: 
+            # Уведомляем пользователя о начале генерации
+            await callback_query.message.answer("🔄 Начинаем генерацию изображения...")
+            
+            # Обработка использования бесплатной генерации
+            prompt = cl.model.get_prompt_by_payment_id(paymentID)
+            image_url= cl.take_image(tgID, prompt)
+            
+            # Обновляем статус бесплатной генерации
+            cl.model.update_lim(tgID, 'hasFreePicture')  # Уменьшаем количество бесплатных генераций
+            content = FSInputFile('content.jpg')
+            await callback_query.message.answer_photo(photo=content)
+            await callback_query.answer(f"🎉 Бесплатная генерация использована")
+            await callback_query.message.edit_text(f"🎉 Бесплатная генерация использована", reply_markup=None)
+            cl.model.update_image_url(paymentID, image_url)
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message):

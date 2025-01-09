@@ -5,6 +5,9 @@ from openai import OpenAI
 import requests
 import json
 from pathlib import Path
+from PIL import Image
+from io import BytesIO
+import base64
 
 from gigachat import GigaChat
 from gigachat.models import Chat, Messages, MessagesRole
@@ -47,7 +50,7 @@ class OpenAIModel():
         'api': PROXY_API_KEY
     },
     7:{
-        'name': 'Kandynsky',
+        'name': 'Sber GigaChat для генерации изображений',
         'base_url': ''
     },
     8:{
@@ -82,26 +85,30 @@ class OpenAIModel():
                             model="GigaChat-Pro", 
                             verify_ssl_certs=False)
             response = giga.chat(payload)
-            return messages, response.choices[0].message.content
+            content = response.choices[0].message.content
+
+            
         elif model_name == 'gemini-1.5-flash':
             
             # Заголовки запроса
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {PROXY_API_KEY}"
+                "Authorization": f"Bearer {api}"
             }
 
             # Данные для запроса
+            # data = {
+            #     "contents": messages
+            # }
             data = {
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}]
-            }
-
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}]
+}
             # Отправка POST-запроса
             response = requests.post(base_url, headers=headers, data=json.dumps(data))
 
             result = response.json()
-
-            return result['candidates'][0]['content']['parts'][0]['text']
+            
+            content = result['candidates'][0]['content']['parts'][0]['text']
         
         else:
         # Здесь можно разместить логику для отправки запроса на API
@@ -118,38 +125,75 @@ class OpenAIModel():
             
             content = completion.choices[0].message.content
             # Добавляем ответ ассистента в messages
-            messages.append({"role": "assistant", "content": content})
+        messages.append({"role": "assistant", "content": content})
 
-            # Возвращаем обновлённый список messages
-            return messages, content
+        # Возвращаем обновлённый список messages
+        return messages, content
 
     def generate_image(self,model_name: str, base_url: str, prompt: str) -> str:
-        client = OpenAI(
+        content = 'content.jpg'
+        if model_name == "Sber GigaChat для генерации изображений":
+            giga = GigaChat(credentials=GIGACHAT_API_KEY, verify_ssl_certs=False)
+
+            payload = Chat(
+                messages=[Messages(role=MessagesRole.USER, content=f"Нарисуй картину: {prompt}")],
+                temperature=0.7,
+                max_tokens=100,
+                function_call="auto",
+            )
+
+            # Получение изображения
+            response = giga.chat(payload)
+            url = response.choices[0].message.content.split('src="')[1].split('"')[0]
+            img = giga.get_image(url)
+
+            # Декодирование base64 и создание изображения
+            img_data = base64.b64decode(img.content)
+            image = Image.open(BytesIO(img_data))
+
+            image.save(content)
+            # Отображение изображения
+        else:
+            client = OpenAI(
                 api_key=PROXY_API_KEY,
                 base_url=base_url,
             )
-        print(f'промпт - {prompt}')
-        if model_name == 'dall-e-3':
-            size = "1024x1024"
-        else:
-            size = "512x512"
-        response = client.images.generate(
-            model=model_name,
-            prompt=prompt,
-            n=1,
-            size=size
 
-    )
-        return response.data[0].url
-    
+            size = "1024x1024"
+            response = client.images.generate(
+                model=model_name,
+                prompt=prompt,
+                n=1,
+                size=size
+
+        )
+            url = response.data[0].url
+            # Заголовки для запроса (если нужны)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+            }
+
+            # Отправляем GET-запрос для получения изображения
+            response = requests.get(url, headers=headers)
+
+            # Проверяем, успешен ли запрос
+            if response.status_code == 200:
+                # Сохраняем изображение в файл
+                with open(content, "wb") as file:
+                    file.write(response.content)
+                print("Изображение успешно скачано и сохранено как image.png")
+            else:
+                print(f"Ошибка при скачивании изображения: {response.status_code}")
+        
+        return url
     def generate_audio(self,model_name: str, base_url: str, prompt: str) -> str:
         client = OpenAI(api_key=PROXY_API_KEY, base_url="base_url")
 
         speech_file_path = Path(__file__).parent / "speech.mp3"
         response = client.audio.speech.create(
-        model="tts-1",
+        model=model_name,
         voice="alloy",
-        input="собаки бессмертны 320 дней"
+        input=prompt
         )
 
         response.stream_to_file(speech_file_path)

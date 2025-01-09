@@ -162,8 +162,8 @@ class Client():
        
         model_number = self.model.get_model(tgID, column='imageModel')
         
-        image_url =self.aimodel.generate_image(model_name=self.aimodel.model_list[model_number]['name'], base_url=self.aimodel.model_list[model_number]['base_url'], prompt=prompt)
-        return image_url
+        url =self.aimodel.generate_image(model_name=self.aimodel.model_list[model_number]['name'], base_url=self.aimodel.model_list[model_number]['base_url'], prompt=prompt)
+        return url
         
 
 

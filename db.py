@@ -3,16 +3,22 @@ import json
 
 class Model:
     def __init__(self) -> None:
+        """
+        Инициализация класса Model. Устанавливает параметры подключения к базе данных.
+        """
         self.db = {
-            'database': 'mydb',  # Имя базы данных
-            'user': 'root',      # Имя пользователя
-            'password': '12345', # Пароль
-            'host': 'localhost', # IP-адрес или доменное имя сервера
-            'port': 3306         # Порт (по умолчанию 3306 для MySQL)
+            'database': 'mydb',
+            'user': 'root',
+            'password': '12345',
+            'host': 'localhost',
+            'port': 3306
         }
         self.connection = self.connect()
 
     def connect(self):
+        """
+        Устанавливает соединение с базой данных.
+        """
         try:
             connection = pymysql.connect(**self.db)
             print("Соединение с базой данных установлено.")
@@ -21,7 +27,7 @@ class Model:
             print(f"Ошибка подключения к базе данных: {e}")
             return None
         
-    def execute_query(self, query: str, *args, fetch_one: bool = False) -> any:
+    def execute_query(self, query: str, *args, fetch_one: bool = False, fetch_any: bool = False) -> any:
         """
         Выполняет запрос к базе данных.
 
@@ -43,7 +49,12 @@ class Model:
                         return result[0]
                     else:
                         return None
-                
+                elif fetch_any:
+                    result = cursor.fetchone()
+                    if result is not None:
+                        return result
+                    else:
+                        return None
                 self.connection.commit()
         except pymysql.MySQLError as e:
             print(f"Ошибка выполнения запроса: {e}")
@@ -59,6 +70,9 @@ class Model:
             
 class UserModel(Model):
     def __init__(self) -> None:
+        """
+        Инициализация класса UserModel, наследующего функциональность Model.
+        """
         super().__init__()
 
     def get_payment_id(self, tgID, description):
@@ -133,15 +147,18 @@ class UserModel(Model):
     
     def check_user_subscription(self, tgID):
         """
-        Проверяет, существует ли запись в таблице subscriptions по tgID
+        Проверяет, существует ли запись в таблице subscriptions по tgID.
         """
         query = '''
-            SELECT * FROM subscriptions 
+            SELECT isEnable FROM subscriptions 
             WHERE tgID = %s 
         '''
-        return self.execute_query(query, tgID, fetch_one=True)
+        return self.execute_query(query, tgID, fetch_any=True)
     
     def select_messages(self, tgID):
+        """
+        Получает сообщения из таблицы users по tgID.
+        """
         query = """
             SELECT messages 
             FROM users
@@ -150,8 +167,35 @@ class UserModel(Model):
         messages = self.execute_query(query, tgID, fetch_one=True)
         messages_dict = json.loads(messages)
         return messages_dict
-        
+    
+    def select_lim(self, tgID, column):
+        """
+        Получает статус ограниченной подписки из таблицы users по tgID.
+        """
+        query = f"""
+            SELECT {column} 
+            FROM users
+            WHERE tgID = %s
+        """
+        hasLimitedSubscription = self.execute_query(query, tgID, fetch_one=True)
+        return hasLimitedSubscription
+
+    def update_lim(self, tgID, column):
+        """
+        Обновляет статус ограниченной подписки в таблице users по tgID.
+        """
+        query = f'''
+            UPDATE users
+            SET {column} = 0
+            WHERE tgID = %s
+        '''
+        self.execute_query(query, tgID)
+        print('Запись изменена')
+
     def update_context_clear(self, tgID):
+        """
+        Очищает контекст сообщений в таблице users по tgID.
+        """
         query = '''
             UPDATE users
             SET messages = '[{"role": "system", "content": "ты - чат-бот ассистент."}]'
@@ -206,7 +250,11 @@ class UserModel(Model):
         '''
         self.execute_query(query, new_image_url, paymentID)
         print(f"Обновлен image_url для paymentID: {paymentID}")
+
     def update_messages(self, tgID, messages):
+        """
+        Обновляет сообщения в таблице users по tgID.
+        """
         json_messages = json.dumps(messages)
         query = """
             UPDATE users
@@ -214,6 +262,7 @@ class UserModel(Model):
             WHERE tgID = %s
         """
         self.execute_query(query, json_messages, tgID)
+
     def new_user(self, tgID, name, date_start, model, imageModel):
         """
         Добавляет нового пользователя в таблицу users.
@@ -237,15 +286,22 @@ class UserModel(Model):
         self.execute_query(query, PaymentID, status, description, tgID, value, created_at, expires_at, payment_url)
         print('Запись добавлена')
 
-    def add_subscriptions(self, type, tgID, paymentID):
+    def add_subscriptions(self, type, tgID, paymentID = None, end_Date = None):
         """
         Добавляет новую запись в таблицу subscriptions.
         """
-        query = '''
-            INSERT INTO subscriptions (type, tgID, paymentID) 
+        if paymentID is not None:
+            query = '''
+                INSERT INTO subscriptions (type, tgID, paymentID) 
+                VALUES (%s, %s, %s)
+            '''
+            self.execute_query(query, type, tgID, paymentID)
+        else:
+            query = '''
+            INSERT INTO subscriptions (type, tgID, end_Date) 
             VALUES (%s, %s, %s)
         '''
-        self.execute_query(query, type, tgID, paymentID)
+            self.execute_query(query, type, tgID, end_Date)
 
     def add_image(self, tgID, paymentID, prompt):
         """
