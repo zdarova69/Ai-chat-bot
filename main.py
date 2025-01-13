@@ -3,11 +3,11 @@ import logging
 import sys
 from datetime import datetime, timedelta
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, FSInputFile
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, FSInputFile, ContentType
 from aiogram.types.web_app_info import WebAppInfo   
 from aiogram.filters import Command
 
@@ -211,31 +211,34 @@ async def img(message: Message):
     tgID = message.from_user.id
     prompt = message.text
     
-    # Проверяем, есть ли у пользователя бесплатные генерации
-    has_free_pic = cl.model.select_lim(tgID, 'hasFreePicture')
-    paymentID, payment_url = cl.create_check(tgID=tgID, value=amount, description='2')
+    if prompt == '/gen_image':
+        await message.answer(f'🎨 Чтобы сгенерировать изображение, после команды /gen_image добавьте описание')
+    else:
+        # Проверяем, есть ли у пользователя бесплатные генерации
+        has_free_pic = cl.model.select_lim(tgID, 'hasFreePicture')
+        paymentID, payment_url = cl.create_check(tgID=tgID, value=amount, description='2')
+        
+        # Создаем кнопки
+        buttons = [
+            [InlineKeyboardButton(text="💳 Оплатить", web_app=WebAppInfo(url=payment_url))],
+            [InlineKeyboardButton(text="✅ Подтвердить оплату", callback_data=f"confirm_image:{paymentID}")]
+        ]
+        
+        # Отправляем сообщение с промптом и информацией о бесплатных генерациях
+        await message.answer(f'🎨 Ваш промпт: {prompt}')
     
-    # Создаем кнопки
-    buttons = [
-        [InlineKeyboardButton(text="💳 Оплатить", web_app=WebAppInfo(url=payment_url))],
-        [InlineKeyboardButton(text="✅ Подтвердить оплату", callback_data=f"confirm_image:{paymentID}")]
-    ]
-    
-    # Отправляем сообщение с промптом и информацией о бесплатных генерациях
-    await message.answer(f'🎨 Ваш промпт: {prompt}')
- 
-    
-    # Если есть бесплатные генерации, добавляем кнопку для их использования
-    if has_free_pic == 1:
-        buttons.append([InlineKeyboardButton(text="🆓 Использовать бесплатную генерацию", callback_data=f"use_free_image:{paymentID}")])
-    
-    # Добавляем запись о генерации в базу данных
-    cl.model.add_image(tgID, paymentID, prompt)
-    
-    # Отправляем сообщение с кнопками
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
-    await message.answer(f"""🎁 У вас есть {has_free_pic} бесплатных генераций.
-💸 Проведите оплату в размере {amount} рублей""", reply_markup=keyboard)
+        
+        # Если есть бесплатные генерации, добавляем кнопку для их использования
+        if has_free_pic == 1:
+            buttons.append([InlineKeyboardButton(text="🆓 Использовать бесплатную генерацию", callback_data=f"use_free_image:{paymentID}")])
+        
+        # Добавляем запись о генерации в базу данных
+        cl.model.add_image(tgID, paymentID, prompt)
+        
+        # Отправляем сообщение с кнопками
+        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
+        await message.answer(f"""🎁 У вас есть {has_free_pic} бесплатных генераций.
+    💸 Проведите оплату в размере {amount} рублей""", reply_markup=keyboard)
 
 
 # Обработчик callback запросов
@@ -298,6 +301,18 @@ async def cmd_help(message: Message):
 async def cmd_clear_context(message: Message):
     cl.model.update_context_clear(message.from_user.id)
     await message.reply('контекст очищен! ✅')
+
+
+@dp.message(F.content_type == ContentType.PHOTO)
+async def photo_handler(message: Message):
+    image_path = "files/images/input/input.jpg"
+    prompt=message.caption
+    # Скачивание фотографии
+    await message.bot.download(file=message.photo[-1].file_id, destination=image_path)
+
+    answer = cl.answer_photo(tgID=message.from_user.id, photo=image_path, prompt=prompt)
+    await message.reply(answer)
+
 
 @dp.message()
 async def message_handler(message: Message) -> None:

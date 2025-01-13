@@ -140,6 +140,8 @@ class Client():
             print(f"An error occurred: {e}")
             
     def generate_answer(self, tgID, prompt:str): 
+        if prompt is None:
+            return 'я не люблю работать со стикерами'
        # Получаем сообщения и номер модели
         messages = self.model.select_messages(tgID)
         model_number = self.model.get_model(tgID, column='model')
@@ -162,10 +164,20 @@ class Client():
        
         model_number = self.model.get_model(tgID, column='imageModel')
         
-        url =self.aimodel.generate_image(model_name=self.aimodel.model_list[model_number]['name'], base_url=self.aimodel.model_list[model_number]['base_url'], prompt=prompt)
+        url = self.aimodel.generate_image(model_name=self.aimodel.model_list[model_number]['name'], base_url=self.aimodel.model_list[model_number]['base_url'], prompt=prompt)
         return url
         
+    def answer_photo(self, tgID, photo:str, prompt:str): 
+       # Получаем сообщения и номер модели
+        messages = self.model.select_messages(tgID)
 
+        answer, content = self.aimodel.vizard_photo(photo=photo, messages=messages, prompt=prompt)
+
+        
+        # Обновляем сообщения в базе данных
+        self.model.update_messages(tgID, answer)
+
+        return content
 
         
     

@@ -54,7 +54,7 @@ class Model:
                     if result is not None:
                         return result
                     else:
-                        return None
+                        return [0]
                 self.connection.commit()
         except pymysql.MySQLError as e:
             print(f"Ошибка выполнения запроса: {e}")

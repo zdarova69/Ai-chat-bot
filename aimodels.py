@@ -131,7 +131,7 @@ class OpenAIModel():
         return messages, content
 
     def generate_image(self,model_name: str, base_url: str, prompt: str) -> str:
-        content = 'content.jpg'
+        content = 'files/images/output/content.jpg'
         if model_name == "Sber GigaChat для генерации изображений":
             giga = GigaChat(credentials=GIGACHAT_API_KEY, verify_ssl_certs=False)
 
@@ -186,8 +186,9 @@ class OpenAIModel():
                 print(f"Ошибка при скачивании изображения: {response.status_code}")
         
         return url
+    
     def generate_audio(self,model_name: str, base_url: str, prompt: str) -> str:
-        client = OpenAI(api_key=PROXY_API_KEY, base_url="base_url")
+        client = OpenAI(api_key=PROXY_API_KEY, base_url=base_url)
 
         speech_file_path = Path(__file__).parent / "speech.mp3"
         response = client.audio.speech.create(
@@ -199,6 +200,36 @@ class OpenAIModel():
         response.stream_to_file(speech_file_path)
 
         return speech_file_path
+    
+    def vizard_photo(self, photo: str, messages: list, prompt: str):
+        client = OpenAI(api_key=PROXY_API_KEY, base_url="https://api.proxyapi.ru/openai/v1")
+        # Function to encode the image
+        with open(photo, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"что на этой картинке?{prompt}",
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                        },
+                    ],
+                }
+            ],
+        )
+
+        content = response.choices[0].message.content
+        messages.append({"role": "assistant", "content": content})
+
+        return messages, content
 # # Класс для хранения всех моделей и доступа к ним
 # class ModelRegistry:
 #     def __init__(self) -> None:
