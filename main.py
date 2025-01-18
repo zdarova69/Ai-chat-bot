@@ -13,10 +13,7 @@ from aiogram.filters import Command
 
 # from gen_message import generate_messange
 from client import Client
-# Открываем файл в режиме чтения
-with open('tg_api.txt', 'r') as file:
-    # Читаем содержимое файла
-    TOKEN = file.read()
+from api import TOKEN
 
 # All handlers should be attached to the Router (or Dispatcher)
 
