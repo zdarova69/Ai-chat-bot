@@ -7,9 +7,9 @@ class Model:
         Инициализация класса Model. Устанавливает параметры подключения к базе данных.
         """
         self.db = {
-            'database': 'mydb',
+            'database': 'diplom',
             'user': 'root',
-            'password': '12345',
+            'password': '',
             'host': 'localhost',
             'port': 3306
         }
@@ -180,13 +180,13 @@ class UserModel(Model):
         hasLimitedSubscription = self.execute_query(query, tgID, fetch_one=True)
         return hasLimitedSubscription
 
-    def update_lim(self, tgID, column):
+    def update_lim(self, tgID, column, count = 0):
         """
         Обновляет статус ограниченной подписки в таблице users по tgID.
         """
         query = f'''
             UPDATE users
-            SET {column} = 0
+            SET {column} = {count}
             WHERE tgID = %s
         '''
         self.execute_query(query, tgID)

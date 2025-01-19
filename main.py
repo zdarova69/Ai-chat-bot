@@ -142,6 +142,7 @@ async def choose_model(message: Message):
         ]
     else:
         buttons = [[InlineKeyboardButton(text="Sber GigaChat", callback_data="Sber GigaChat")],
+            [InlineKeyboardButton(text="Sber GigaChat для генерации изображений", callback_data="Sber GigaChat для генерации изображений")],
             [InlineKeyboardButton(text="DALL-E 3.0", callback_data="DALL-E 3.0")],
             [InlineKeyboardButton(text="dall-e-2", callback_data="dall-e-2")]
         ]
@@ -226,7 +227,7 @@ async def img(message: Message):
     
         
         # Если есть бесплатные генерации, добавляем кнопку для их использования
-        if has_free_pic == 1:
+        if has_free_pic > 1:
             buttons.append([InlineKeyboardButton(text="🆓 Использовать бесплатную генерацию", callback_data=f"use_free_image:{paymentID}")])
         
         # Добавляем запись о генерации в базу данных
@@ -276,8 +277,8 @@ async def process_callback_answer(callback_query: CallbackQuery):
             image_url= cl.take_image(tgID, prompt)
             
             # Обновляем статус бесплатной генерации
-            cl.model.update_lim(tgID, 'hasFreePicture')  # Уменьшаем количество бесплатных генераций
-            content = FSInputFile('content.jpg')
+            cl.model.update_lim(tgID, 'hasFreePicture', has_free_pic - 1)  # Уменьшаем количество бесплатных генераций
+            content = FSInputFile('files/images/output/content.jpg')
             await callback_query.message.answer_photo(photo=content)
             await callback_query.answer(f"🎉 Бесплатная генерация использована")
             await callback_query.message.edit_text(f"🎉 Бесплатная генерация использована", reply_markup=None)
