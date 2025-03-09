@@ -1,4 +1,3 @@
-import uuid
 import json
 from yookassa import Configuration, Payment
 from api import ACCOUNT_ID, SECRET_KEY
@@ -7,7 +6,7 @@ class Payments():
     def __init__(self):
         Configuration.account_id = ACCOUNT_ID
         Configuration.secret_key = SECRET_KEY
-    def payment(self, value, description):
+    async def payment(self, value, description):
         payment = Payment.create({
             "amount": {
                 "value": value,
@@ -40,7 +39,7 @@ class Payments():
             }
         })  # Добавлена закрывающая скобка
         return json.loads(payment.json())
-    def check_payment_status(self, payment_id):
+    async def check_payment_status(self, payment_id):
         payment = Payment.find_one(payment_id=payment_id)
         return payment['status']
 	

@@ -1,5 +1,3 @@
-from abc import ABC, abstractmethod
-
 from openai import OpenAI
 
 import requests
@@ -10,8 +8,7 @@ from io import BytesIO
 import base64
 
 from gigachat import GigaChat
-from gigachat.models import Chat, Messages, MessagesRole
-
+from gigachat.models import Chat
 from api import PROXY_API_KEY, GIGACHAT_API_KEY, DEEPSEEK_API_KEY
 
 
@@ -51,7 +48,8 @@ class OpenAIModel():
     },
     7:{
         'name': 'Sber GigaChat для генерации изображений',
-        'base_url': ''
+        'base_url': '',
+        'api': GIGACHAT_API_KEY
     },
     8:{
         'name': 'dall-e-2',
@@ -69,18 +67,33 @@ class OpenAIModel():
         'base_url': 'https://api.proxyapi.ru/openai/v1',
         'api': PROXY_API_KEY
 
-    }
-} 
-    def generate_text(self,model_name: str, base_url: str, prompt: str, api: str, messages: list ) -> str:
+    },
+    11:{
+        'name': 'claude-3-7-sonnet-20250219',
+        'base_url': 'https://api.proxyapi.ru/anthropic/v1/messages',
+        'api': PROXY_API_KEY
+    },
+    12: {
+        'name': 'deepseek-reasoner', 
+        'base_url': "https://api.deepseek.com",
+        'api': DEEPSEEK_API_KEY
+    },
+}   
+    async def create_gigachat_payload(self, messages, temperature: float, max_tokens: int, function_call: str = 'none'):
+        payload = Chat(
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            function_call=function_call
+        )
+        return payload
+
+    async def generate_text(self, model_name: str, base_url: str, prompt: str, api: str, messages: list) -> str:
         # Добавляем новый запрос пользователя
         messages.append({"role": "user", "content": prompt})
         
         if model_name == 'Sber GigaChat':
-            payload = Chat(
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1000,
-            )
+            payload = await self.create_gigachat_payload(messages=messages, temperature=0.7, max_tokens=2000)
             giga = GigaChat(credentials=api, 
                             model="GigaChat-Pro", 
                             verify_ssl_certs=False)
@@ -109,7 +122,30 @@ class OpenAIModel():
             result = response.json()
             
             content = result['candidates'][0]['content']['parts'][0]['text']
-        
+        elif model_name == 'claude-3-7-sonnet-20250219':
+            
+            # Заголовки запроса
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api}"
+            }
+
+            # Данные для запроса
+            # data = {
+            #     "contents": messages
+            # }
+            # Данные для запроса
+            data = {
+                "model": model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 2024
+            }
+            # Отправка POST-запроса
+            response = requests.post(base_url, headers=headers, data=json.dumps(data))
+
+            result = response.json()
+            
+            content = result['content'][0]['text']
         else:
         # Здесь можно разместить логику для отправки запроса на API
             client = OpenAI(
@@ -130,18 +166,18 @@ class OpenAIModel():
         # Возвращаем обновлённый список messages
         return messages, content
 
-    def generate_image(self,model_name: str, base_url: str, prompt: str) -> str:
+    async def generate_image(self,model_name: str, base_url: str, prompt: str, api:str) -> str:
         content = 'files/images/output/content.jpg'
         if model_name == "Sber GigaChat для генерации изображений":
-            giga = GigaChat(credentials=GIGACHAT_API_KEY, verify_ssl_certs=False)
+            giga = GigaChat(credentials=api, verify_ssl_certs=False)
 
-            payload = Chat(
-                messages=[Messages(role=MessagesRole.USER, content=f"Нарисуй картину: {prompt}")],
+            # Исправлено: передаем список сообщений, как в оригинальном коде
+            payload = await self.create_gigachat_payload(
+                messages=[{"role": "user", "content": f"Нарисуй картину: {prompt}"}],  # Список сообщений
                 temperature=0.7,
-                max_tokens=100,
-                function_call="auto",
+                max_tokens=1000,
+                function_call='auto'
             )
-
             # Получение изображения
             response = giga.chat(payload)
             url = response.choices[0].message.content.split('src="')[1].split('"')[0]
@@ -155,7 +191,7 @@ class OpenAIModel():
             # Отображение изображения
         else:
             client = OpenAI(
-                api_key=PROXY_API_KEY,
+                api_key=api,
                 base_url=base_url,
             )
 
@@ -187,7 +223,7 @@ class OpenAIModel():
         
         return url
     
-    def generate_audio(self,model_name: str, base_url: str, prompt: str) -> str:
+    async def generate_audio(self,model_name: str, base_url: str, prompt: str) -> str:
         client = OpenAI(api_key=PROXY_API_KEY, base_url=base_url)
 
         speech_file_path = Path(__file__).parent / "speech.mp3"
@@ -201,7 +237,7 @@ class OpenAIModel():
 
         return speech_file_path
     
-    def vizard_photo(self, photo: str, messages: list, prompt: str):
+    async def vizard_photo(self, photo: str, messages: list, prompt: str):
         client = OpenAI(api_key=PROXY_API_KEY, base_url="https://api.proxyapi.ru/openai/v1")
         # Function to encode the image
         with open(photo, "rb") as image_file:
@@ -232,14 +268,14 @@ class OpenAIModel():
         return messages, content
 # # Класс для хранения всех моделей и доступа к ним
 # class ModelRegistry:
-#     def __init__(self) -> None:
+#     async def __init__(self) -> None:
 #         self.models = {
 #             'OpenAI GPT-4.0': OpenAIModel('gpt-4o-mini', "https://api.proxyapi.ru/openai/v1"),
 #             'OpenAI o1': OpenAIModel('o1-mini', "https://api.proxyapi.ru/openai/v1"),
 #             'Google Gemini': OpenAIModel('gemini-1.5-flash', "https://api.proxyapi.ru/google/v1")
 #         }
 
-#     def get_model(self, name: str) -> Model:
+#     async def get_model(self, name: str) -> Model:
 #         return self.models.get(name)
 
 # # Пример использования

@@ -1,15 +1,16 @@
 import pymysql
 import json
 
+
 class Model:
     def __init__(self) -> None:
         """
         Инициализация класса Model. Устанавливает параметры подключения к базе данных.
         """
         self.db = {
-            'database': 'diplom',
+            'database': 'mydb',
             'user': 'root',
-            'password': '',
+            'password': '12345',
             'host': 'localhost',
             'port': 3306
         }
@@ -50,7 +51,7 @@ class Model:
                     else:
                         return None
                 elif fetch_any:
-                    result = cursor.fetchone()
+                    result = cursor.fetchall()
                     if result is not None:
                         return result
                     else:
@@ -60,7 +61,7 @@ class Model:
             print(f"Ошибка выполнения запроса: {e}")
             return None
 
-    def close(self):
+    async def close(self):
         """
         Закрывает соединение с базой данных.
         """
@@ -75,7 +76,7 @@ class UserModel(Model):
         """
         super().__init__()
 
-    def get_payment_id(self, tgID, description):
+    async def get_payment_id(self, tgID, description):
         """
         Получает PaymentID из таблицы payments по tgID и description.
         """
@@ -85,7 +86,7 @@ class UserModel(Model):
         '''
         return self.execute_query(query, tgID, description, fetch_one=True)
 
-    def get_payment_id_by_url(self, payment_url):
+    async def get_payment_id_by_url(self, payment_url):
         """
         Получает PaymentID из таблицы payments по payment_url.
         """
@@ -95,7 +96,7 @@ class UserModel(Model):
         '''
         return self.execute_query(query, payment_url, fetch_one=True)
 
-    def get_model(self, tgID, column):
+    async def get_model(self, tgID, column):
         """
         Получает значение указанного столбца из таблицы users по tgID.
         """
@@ -104,7 +105,7 @@ class UserModel(Model):
         '''
         return self.execute_query(query, tgID, fetch_one=True)
 
-    def check_status(self, tgID, description):
+    async def check_status(self, tgID, description):
         """
         Получает статус из таблицы payments по tgID и description.
         """
@@ -114,7 +115,7 @@ class UserModel(Model):
         '''
         return self.execute_query(query, tgID, description, fetch_one=True)
 
-    def get_payment_url(self, tgID, description):
+    async def get_payment_url(self, tgID, description):
         """
         Получает payment_url из таблицы payments по tgID и description.
         """
@@ -124,7 +125,7 @@ class UserModel(Model):
         '''
         return self.execute_query(query, tgID, description, fetch_one=True)
 
-    def get_prompt_by_payment_id(self, paymentID):
+    async def get_prompt_by_payment_id(self, paymentID):
         """
         Получает prompt из таблицы images по paymentID.
         """
@@ -135,7 +136,7 @@ class UserModel(Model):
         '''
         return self.execute_query(query, paymentID, fetch_one=True)
 
-    def check_payment_exist(self, tgID, description):
+    async def check_payment_exist(self, tgID, description):
         """
         Проверяет, существует ли запись в таблице payments по tgID и description.
         """
@@ -145,7 +146,7 @@ class UserModel(Model):
         '''
         return self.execute_query(query, tgID, description, fetch_one=True)
     
-    def check_user_subscription(self, tgID):
+    async def check_user_subscription(self, tgID):
         """
         Проверяет, существует ли запись в таблице subscriptions по tgID.
         """
@@ -155,7 +156,7 @@ class UserModel(Model):
         '''
         return self.execute_query(query, tgID, fetch_any=True)
     
-    def select_messages(self, tgID):
+    async def select_messages(self, tgID):
         """
         Получает сообщения из таблицы users по tgID.
         """
@@ -168,7 +169,7 @@ class UserModel(Model):
         messages_dict = json.loads(messages)
         return messages_dict
     
-    def select_lim(self, tgID, column):
+    async def select_lim(self, tgID, column):
         """
         Получает статус ограниченной подписки из таблицы users по tgID.
         """
@@ -180,7 +181,7 @@ class UserModel(Model):
         hasLimitedSubscription = self.execute_query(query, tgID, fetch_one=True)
         return hasLimitedSubscription
 
-    def update_lim(self, tgID, column, count = 0):
+    async def update_lim(self, tgID, column, count):
         """
         Обновляет статус ограниченной подписки в таблице users по tgID.
         """
@@ -192,7 +193,7 @@ class UserModel(Model):
         self.execute_query(query, tgID)
         print('Запись изменена')
 
-    def update_context_clear(self, tgID):
+    async def update_context_clear(self, tgID):
         """
         Очищает контекст сообщений в таблице users по tgID.
         """
@@ -203,7 +204,7 @@ class UserModel(Model):
         '''
         self.execute_query(query, tgID)
 
-    def update_payment(self, PaymentID, status, value, created_at, expires_at, payment_url, tgID, description):
+    async def update_payment(self, PaymentID, status, value, created_at, expires_at, payment_url, tgID, description):
         """
         Обновляет запись в таблице payments.
         """
@@ -215,7 +216,7 @@ class UserModel(Model):
         self.execute_query(query, PaymentID, status, value, created_at, expires_at, payment_url, tgID, description)
         print('Запись изменена')
 
-    def update_payment_status(self, status, PaymentID):
+    async def update_payment_status(self, status, PaymentID):
         """
         Обновляет статус платежа в таблице payments по PaymentID.
         """
@@ -227,7 +228,7 @@ class UserModel(Model):
         self.execute_query(query, status, PaymentID)
         print('Запись изменена')
 
-    def change_model(self, column, model, tgID):
+    async def change_model(self, column, model, tgID):
         """
         Обновляет указанный столбец в таблице users по tgID.
         """
@@ -239,7 +240,7 @@ class UserModel(Model):
         self.execute_query(query, model, tgID)
         print('Модель изменена')
 
-    def update_image_url(self, paymentID, new_image_url):
+    async def update_image_url(self, paymentID, new_image_url):
         """
         Обновляет image_url в таблице images по paymentID.
         """
@@ -251,7 +252,7 @@ class UserModel(Model):
         self.execute_query(query, new_image_url, paymentID)
         print(f"Обновлен image_url для paymentID: {paymentID}")
 
-    def update_messages(self, tgID, messages):
+    async def update_messages(self, tgID, messages):
         """
         Обновляет сообщения в таблице users по tgID.
         """
@@ -263,7 +264,7 @@ class UserModel(Model):
         """
         self.execute_query(query, json_messages, tgID)
 
-    def new_user(self, tgID, name, date_start, model, imageModel):
+    async def new_user(self, tgID, name, date_start, model, imageModel):
         """
         Добавляет нового пользователя в таблицу users.
         """
@@ -275,7 +276,7 @@ class UserModel(Model):
         self.execute_query(query, tgID, name, date_start, model, imageModel)
         print('Данные сохранены')
 
-    def add_payment(self, PaymentID, status, description, tgID, value, created_at, expires_at, payment_url):
+    async def add_payment(self, PaymentID, status, description, tgID, value, created_at, expires_at, payment_url):
         """
         Добавляет новую запись в таблицу payments.
         """
@@ -286,7 +287,7 @@ class UserModel(Model):
         self.execute_query(query, PaymentID, status, description, tgID, value, created_at, expires_at, payment_url)
         print('Запись добавлена')
 
-    def add_subscriptions(self, type, tgID, paymentID = None, end_Date = None):
+    async def add_subscriptions(self, type, tgID, paymentID = None, end_Date = None):
         """
         Добавляет новую запись в таблицу subscriptions.
         """
@@ -303,7 +304,7 @@ class UserModel(Model):
         '''
             self.execute_query(query, type, tgID, end_Date)
 
-    def add_image(self, tgID, paymentID, prompt):
+    async def add_image(self, tgID, paymentID, prompt):
         """
         Добавляет новую запись в таблицу images.
         """
