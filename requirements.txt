@@ -1,0 +1,6 @@
+aiogram==3.10
+gigachat==0.1.31
+openai==1.65.4
+pymysql==1.1.1
+yookassa==3.3.0
+beautifulsoup4==4.12.2
