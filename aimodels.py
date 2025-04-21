@@ -3,13 +3,13 @@ from openai import OpenAI
 import requests
 import json
 from pathlib import Path
-from PIL import Image
-from io import BytesIO
 import base64
+from bs4 import BeautifulSoup
 
 from gigachat import GigaChat
 from gigachat.models import Chat
-from api import PROXY_API_KEY, GIGACHAT_API_KEY, DEEPSEEK_API_KEY
+
+from api import PROXY_API_KEY, GIGACHAT_API_KEY, DEEPSEEK_API_KEY, PERPLEXITY_API_KEY
 
 
 # Класс для конкретной модели
@@ -78,6 +78,11 @@ class OpenAIModel():
         'base_url': "https://api.deepseek.com",
         'api': DEEPSEEK_API_KEY
     },
+     13: {
+        'name': 'sonar', 
+        'base_url': "https://api.perplexity.ai",
+        'api': PERPLEXITY_API_KEY
+    }
 }   
     async def create_gigachat_payload(self, messages, temperature: float, max_tokens: int, function_call: str = 'none'):
         payload = Chat(
@@ -137,7 +142,8 @@ class OpenAIModel():
             # Данные для запроса
             data = {
                 "model": model_name,
-                "messages": [{"role": "user", "content": prompt}],
+                "system": messages[0]['content'],
+                "messages": messages[1:],
                 "max_tokens": 2024
             }
             # Отправка POST-запроса
@@ -152,17 +158,24 @@ class OpenAIModel():
                 api_key=api,
                 base_url=base_url,
             )
-            
-            # Выполняем запрос к модели
-            completion = client.chat.completions.create(
-                model=model_name,
-                messages=messages
-            )
-            
+            if model_name == 'deepseek-reasoner':
+                print(prompt)
+                 # Выполняем запрос к модели
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+            else:
+                # Выполняем запрос к модели
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages
+                )
+            # Получаем ответ от модели
             content = completion.choices[0].message.content
             # Добавляем ответ ассистента в messages
         messages.append({"role": "assistant", "content": content})
-
+        
         # Возвращаем обновлённый список messages
         return messages, content
 
@@ -173,22 +186,23 @@ class OpenAIModel():
 
             # Исправлено: передаем список сообщений, как в оригинальном коде
             payload = await self.create_gigachat_payload(
-                messages=[{"role": "user", "content": f"Нарисуй картину: {prompt}"}],  # Список сообщений
-                temperature=0.7,
-                max_tokens=1000,
-                function_call='auto'
+                messages=[{"role": "system", "content": f"Ты - Василий Кандинский"},
+                    {"role": "user", "content": f"Нарисуй картину: {prompt}"}],  # Список сообщений
+                function_call='auto', 
+                temperature=0.7, 
+                max_tokens=2000
             )
-            # Получение изображения
-            response = giga.chat(payload)
-            url = response.choices[0].message.content.split('src="')[1].split('"')[0]
-            img = giga.get_image(url)
+            response = giga.chat(payload).choices[0].message.content
+            url = response
+            # Получение идентификатора изоборажения из ответа модели
+            # с помощью библиотеки BeautifulSoup
+            file_id = BeautifulSoup(response, "html.parser").find('img').get("src")
 
-            # Декодирование base64 и создание изображения
-            img_data = base64.b64decode(img.content)
-            image = Image.open(BytesIO(img_data))
+            image = giga.get_image(file_id)
 
-            image.save(content)
-            # Отображение изображения
+            # Сохранение изображения в файл
+            with open(content, mode="wb") as fd:
+                fd.write(base64.b64decode(image.content))
         else:
             client = OpenAI(
                 api_key=api,

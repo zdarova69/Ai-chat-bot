@@ -134,6 +134,7 @@ async def choose_model(message: Message):
             [InlineKeyboardButton(text="Deepseek", callback_data="Deepseek")],
             [InlineKeyboardButton(text="Deepseek R1", callback_data="Deepseek R1")],
             [InlineKeyboardButton(text="Claude", callback_data="Claude")],
+            [InlineKeyboardButton(text="Perplexity", callback_data="Perplexity")],
             [InlineKeyboardButton(text="DALL-E 3.0", callback_data="DALL-E 3.0")],
             [InlineKeyboardButton(text="Sber GigaChat для генерации изображений", callback_data="Sber GigaChat для генерации изображений")],
             [InlineKeyboardButton(text="dall-e-2", callback_data="dall-e-2")],
@@ -151,7 +152,7 @@ async def choose_model(message: Message):
     await message.answer('Выберите модель', reply_markup=keyboard)
 
 
-@dp.callback_query(lambda c: c.data in ["Sber GigaChat", "OpenAI GPT-4.0", "OpenAI o1", "Google Gemini", "Deepseek", "Deepseek R1", "Claude", "DALL-E 3.0", "Sber GigaChat для генерации изображений", "dall-e-2", "tts-1", "tts-1-hd"])
+@dp.callback_query(lambda c: c.data in ["Sber GigaChat", "OpenAI GPT-4.0", "OpenAI o1", "Google Gemini", "Deepseek", "Deepseek R1", 'Perplexity',  "Claude", "DALL-E 3.0", "Sber GigaChat для генерации изображений", "dall-e-2", "tts-1", "tts-1-hd"])
 async def process_callback(callback_query: CallbackQuery):
     """
     Обработчик callback-запросов для выбора модели
@@ -170,6 +171,7 @@ async def process_callback(callback_query: CallbackQuery):
         "Sber GigaChat": {"id": 5, "column": "model"},
         "Claude": {"id": 11, "column": "model"},
         "Deepseek R1": {"id": 12, "column": "model"},
+        "Perplexity": {"id": 13, "column": "model"},
         "DALL-E 3.0": {"id": 6, "column": "imageModel"},
         "Sber GigaChat для генерации изображений": {"id": 7, "column": "imageModel"},
         "dall-e-2": {"id": 8, "column": "imageModel"},
@@ -185,12 +187,19 @@ async def img(message: Message):
     """
     Обработчик команды /gen_image
     """
-    amount = '5'
     tgID = message.from_user.id
+    amount = str(await cl.model.select_model_price(tgID))
+    model_number = await cl.model.get_model(tgID, column='imageModel')
     prompt = message.text
 
     if prompt == '/gen_image':
         await message.answer('🎨 Чтобы сгенерировать изображение, после команды /gen_image добавьте описание')
+    elif amount == '0':
+        buttons = [
+            [InlineKeyboardButton(text="🎨 Генерировать", callback_data=f"free_gen:")]
+        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
+        await message.answer(f'🎨 Ваш промпт: {prompt}', reply_markup=keyboard)
     else:
         has_free_pic = await cl.model.select_lim(tgID, 'hasFreePicture')
         paymentID, payment_url = await cl.create_check(tgID=tgID, value=amount, description='2')
@@ -205,20 +214,20 @@ async def img(message: Message):
         if has_free_pic >= 1:
             buttons.append([InlineKeyboardButton(text="🆓 Использовать бесплатную генерацию", callback_data=f"use_free_image:{paymentID}")])
 
-        await cl.model.add_image(tgID, paymentID, prompt)
+        await cl.model.add_image(tgID, paymentID, prompt, model_number)
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
         await message.answer(f"""🎁 У вас есть {has_free_pic} бесплатных генераций.
 💸 Проведите оплату в размере {amount} рублей""", reply_markup=keyboard)
 
 
-@dp.callback_query(lambda c: c.data.startswith(('confirm_image:', 'use_free_image:')))
+@dp.callback_query(lambda c: c.data.startswith(('confirm_image:', 'use_free_image:', "free_gen:")))
 async def process_callback_answer(callback_query: CallbackQuery):
     """
     Обработчик callback-запросов для подтверждения оплаты или использования бесплатной генерации
     """
     tgID = callback_query.from_user.id
-    action, paymentID = callback_query.data.split(':')
+    action, paymentID= callback_query.data.split(':')
 
     # Отвечаем на callback-запрос сразу
     await callback_query.answer()
@@ -226,10 +235,11 @@ async def process_callback_answer(callback_query: CallbackQuery):
     if action == "confirm_image":
         payment_status = await cl.payments.check_payment_status(payment_id=paymentID)
         if payment_status == 'succeeded':
+            await callback_query.bot.send_chat_action(callback_query.message.chat.id, 'upload_photo')
             await callback_query.message.answer("🔄 Начинаем генерацию изображения...")
             await cl.model.update_payment_status(payment_status, paymentID)
-            prompt = await cl.model.get_prompt_by_payment_id(paymentID)
-            image_url = await cl.take_image(tgID, prompt)
+            prompt, model = await cl.model.get_prompt_model_by_payment_id(paymentID)
+            image_url = await cl.take_image(tgID, prompt, model)
             content = FSInputFile('content.jpg')
             await callback_query.message.answer_photo(photo=content)
             await callback_query.message.edit_text("✅ Оплата подтверждена", reply_markup=None)
@@ -237,19 +247,21 @@ async def process_callback_answer(callback_query: CallbackQuery):
         else:
             await callback_query.message.answer("❌ Оплата не выполнена")
 
-    elif action == "use_free_image":
-        has_free_pic = await cl.model.select_lim(tgID, 'hasFreePicture')
-        if has_free_pic == 0:
-            await callback_query.message.answer("🎉 Бесплатная генерация использована")
-        else:
-            await callback_query.message.answer("🔄 Начинаем генерацию изображения...")
-            prompt = await cl.model.get_prompt_by_payment_id(paymentID)
-            image_url = await cl.take_image(tgID, prompt)
-            await cl.model.update_lim(tgID, 'hasFreePicture', has_free_pic - 1)
-            content = FSInputFile('files/images/output/content.jpg')
-            await callback_query.message.answer_photo(photo=content)
-            await callback_query.message.edit_text("🎉 Бесплатная генерация использована", reply_markup=None)
-            await cl.model.update_image_url(paymentID, image_url)
+    else:
+        if action == "use_free_image":
+            has_free_pic = await cl.model.select_lim(tgID, 'hasFreePicture')
+            if has_free_pic == 0:
+                await callback_query.message.answer("🎉 Бесплатная генерация использована")
+                await cl.model.update_lim(tgID, 'hasFreePicture', has_free_pic - 1)
+                return
+        await callback_query.bot.send_chat_action(callback_query.message.chat.id, 'upload_photo')
+        await callback_query.message.answer("🔄 Начинаем генерацию изображения...")
+        prompt, model = await cl.model.get_prompt_model_by_payment_id(paymentID)
+        image_url = await cl.take_image(tgID, prompt, model)
+        content = FSInputFile('files/images/output/content.jpg')
+        await callback_query.message.answer_photo(photo=content)
+        await callback_query.message.edit_text("🎉 Бесплатная генерация использована", reply_markup=None)
+        await cl.model.update_image_url(paymentID, image_url)
 
 
 @dp.message(Command("help"))
@@ -282,7 +294,7 @@ async def photo_handler(message: Message):
     Обработчик фотографий
     """
     image_path = "files/images/input/input.jpg"
-    await message.bot.send_chat_action(message.chat.id, 'upload_photo')
+    await message.bot.send_chat_action(message.chat.id, 'typing')
     prompt = message.caption
     await message.bot.download(file=message.photo[-1].file_id, destination=image_path)
     answer = await cl.answer_photo(tgID=message.from_user.id, photo=image_path, prompt=prompt)
@@ -295,6 +307,7 @@ async def message_handler(message: Message) -> None:
     Обработчик текстовых сообщений
     """
     # Показываем индикатор "печатает..."
+    await message.bot.send_chat_action(message.chat.id, 'typing')
     answer = await cl.generate_answer(tgID=message.from_user.id, prompt=message.text)
     await message.reply(answer)
 

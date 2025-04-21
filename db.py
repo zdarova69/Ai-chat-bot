@@ -8,11 +8,11 @@ class Model:
         Инициализация класса Model. Устанавливает параметры подключения к базе данных.
         """
         self.db = {
-            'database': 'mydb',
-            'user': 'root',
-            'password': '12345',
-            'host': 'localhost',
-            'port': 3306
+            'database': 'diplom',
+            'user': 'abbas',
+            'password': 'Password123!',
+            'host': '83.102.204.60',
+            'port': 6603
         }
         self.connection = self.connect()
 
@@ -29,7 +29,7 @@ class Model:
             return None
         
     def execute_query(self, query: str, *args, fetch_one: bool = False, fetch_any: bool = False) -> any:
-        """
+        """з
         Выполняет запрос к базе данных.
 
         Параметры:
@@ -125,16 +125,17 @@ class UserModel(Model):
         '''
         return self.execute_query(query, tgID, description, fetch_one=True)
 
-    async def get_prompt_by_payment_id(self, paymentID):
+    async def get_prompt_model_by_payment_id(self, paymentID):
         """
-        Получает prompt из таблицы images по paymentID.
+        Получает prompt и model из таблицы images по paymentID.
         """
         query = '''
-            SELECT prompt
+            SELECT prompt, model
             FROM images
             WHERE paymentID = %s
-        '''
-        return self.execute_query(query, paymentID, fetch_one=True)
+        ''' 
+        result = self.execute_query(query, paymentID, fetch_any=True)
+        return result[0]
 
     async def check_payment_exist(self, tgID, description):
         """
@@ -180,7 +181,19 @@ class UserModel(Model):
         """
         hasLimitedSubscription = self.execute_query(query, tgID, fetch_one=True)
         return hasLimitedSubscription
-
+    
+    async def select_model_price(self, tgID):
+        """
+        Получает статус ограниченной подписки из таблицы users по tgID.
+        """
+        query = f"""
+        SELECT amount FROM users 
+        LEFT JOIN models 
+        ON users.imageModel = models.id
+        WHERE tgID = %s;
+        """
+        hasLimitedSubscription = self.execute_query(query, tgID, fetch_one=True)
+        return hasLimitedSubscription
     async def update_lim(self, tgID, column, count):
         """
         Обновляет статус ограниченной подписки в таблице users по tgID.
@@ -304,12 +317,12 @@ class UserModel(Model):
         '''
             self.execute_query(query, type, tgID, end_Date)
 
-    async def add_image(self, tgID, paymentID, prompt):
+    async def add_image(self, tgID, paymentID, prompt, model):
         """
         Добавляет новую запись в таблицу images.
         """
         query = '''
-            INSERT INTO images (tgID, paymentID, prompt) 
-            VALUES (%s, %s, %s)
+            INSERT INTO images (tgID, paymentID, prompt, model) 
+            VALUES (%s, %s, %s, %s)
         '''
-        self.execute_query(query, tgID, paymentID, prompt)
+        self.execute_query(query, tgID, paymentID, prompt, model)

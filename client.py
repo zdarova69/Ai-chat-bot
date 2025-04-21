@@ -145,8 +145,9 @@ class Client:
 
         return content
 
-    async def take_image(self, tgID, prompt: str):
-        model_number = await self.model.get_model(tgID, column='imageModel')
+    async def take_image(self, tgID, prompt: str, model_number = None):
+        if model_number == None:
+            model_number = await self.model.get_model(tgID, column='imageModel')
 
         url = await self.aimodel.generate_image(
             model_name=self.aimodel.model_list[model_number]['name'],
