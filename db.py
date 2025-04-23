@@ -8,11 +8,6 @@ class Model:
         Инициализация класса Model. Устанавливает параметры подключения к базе данных.
         """
         self.db = {
-            'database': 'diplom',
-            'user': 'abbas',
-            'password': 'Password123!',
-            'host': '83.102.204.60',
-            'port': 6603
         }
         self.connection = self.connect()
 
