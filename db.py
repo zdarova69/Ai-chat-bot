@@ -8,20 +8,27 @@ class Model:
         Инициализация класса Model. Устанавливает параметры подключения к базе данных.
         """
         self.db = {
+            'database': 'diplom',
+            'user': 'abbas',
+            'password': 'Password123!',
+            'host': '172.17.0.1',
+            'port': 6603
         }
         self.connection = self.connect()
 
-    def connect(self):
-        """
-        Устанавливает соединение с базой данных.
-        """
-        try:
-            connection = pymysql.connect(**self.db)
-            print("Соединение с базой данных установлено.")
-            return connection
-        except pymysql.MySQLError as e:
-            print(f"Ошибка подключения к базе данных: {e}")
-            return None
+    def connect(self, retries=3, delay=2):
+        """Устанавливает соединение с БД с попытками переподключения."""
+        attempt = 0
+        while attempt < retries:
+            try:
+                connection = pymysql.connect(**self.db)
+                print("Соединение с БД установлено.")
+                return connection
+            except pymysql.MySQLError as e:
+                print(f"Ошибка подключения (попытка {attempt + 1}): {e}")
+                attempt += 1
+                if attempt == retries:
+                    raise
         
     def execute_query(self, query: str, *args, fetch_one: bool = False, fetch_any: bool = False) -> any:
         """з
@@ -36,33 +43,26 @@ class Model:
             Первый столбец первой строки, если fetch_one равно True и результат существует; иначе None.
         """
         try:
+            # Проверяем, что соединение активно
+            if not self.connection or not self.connection.open:
+                self.connection = self.connect()
+                
             with self.connection.cursor() as cursor:
                 cursor.execute(query, args)
                 
                 if fetch_one:
                     result = cursor.fetchone()
-                    if result is not None:
-                        return result[0]
-                    else:
-                        return None
+                    return result[0] if result else None
                 elif fetch_any:
                     result = cursor.fetchall()
-                    if result is not None:
-                        return result
-                    else:
-                        return [0]
+                    return result if result else []
+                    
                 self.connection.commit()
         except pymysql.MySQLError as e:
-            print(f"Ошибка выполнения запроса: {e}")
+            print(f"Ошибка запроса: {e}")
+            self.connection = None  # Сбрасываем соединение для переподключения
             return None
 
-    async def close(self):
-        """
-        Закрывает соединение с базой данных.
-        """
-        if self.connection:
-            self.connection.close()
-            print("Соединение с базой данных закрыто.")
             
 class UserModel(Model):
     def __init__(self) -> None:
@@ -150,7 +150,8 @@ class UserModel(Model):
             SELECT isEnable FROM subscriptions 
             WHERE tgID = %s 
         '''
-        return self.execute_query(query, tgID, fetch_any=True)
+        result = self.execute_query(query, tgID, fetch_any=True)
+        return result if result is not None else []
     
     async def select_messages(self, tgID):
         """

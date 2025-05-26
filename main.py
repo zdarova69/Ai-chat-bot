@@ -80,7 +80,7 @@ async def process_callback_answer(callback_query: CallbackQuery):
     Обработчик callback-запросов для выбора подписки
     """
     if callback_query.data == 'unlimited':
-        payment_url = await cl.create_check(tgID=callback_query.from_user.id, value='1', description='1')
+        payment_url = await cl.create_check(tgID=callback_query.from_user.id, value='180', description='1')
         if payment_url == 'у вас есть подписка':
             await callback_query.answer('✅ У вас уже оформлена подписка')
             await callback_query.message.edit_text('✅ У вас уже оформлена подписка')
@@ -90,8 +90,8 @@ async def process_callback_answer(callback_query: CallbackQuery):
                 [InlineKeyboardButton(text="Подтвердить оплату", callback_data="confirm_subscription")]
             ]
             keyboard = InlineKeyboardMarkup(inline_keyboard=buttons, row_width=2)
-            await callback_query.answer('Совершите оплату подписки 1 руб.', reply_markup=keyboard)
-            await callback_query.message.edit_text('Совершите оплату подписки 1 руб.', reply_markup=keyboard)
+            await callback_query.answer('Совершите оплату подписки 180 руб.', reply_markup=keyboard)
+            await callback_query.message.edit_text('Совершите оплату подписки 180 руб.', reply_markup=keyboard)
     else:
         has_lim_sub = await cl.model.select_lim(callback_query.from_user.id, 'hasLimitedSubscription')
         if has_lim_sub == 1:
@@ -99,7 +99,7 @@ async def process_callback_answer(callback_query: CallbackQuery):
             await cl.model.add_subscriptions(2, callback_query.from_user.id, end_Date=end_date)
             await callback_query.answer('Активирована пробная подписка')
             await callback_query.message.edit_text('Активирована пробная подписка')
-            await cl.model.update_lim(callback_query.from_user.id, 'hasLimitedSubscription')
+            await cl.model.update_lim(callback_query.from_user.id, 'hasLimitedSubscription', has_lim_sub - 1)
         else:
             await callback_query.message.edit_text('Вы уже активировали тестовую подписку')
 
@@ -144,6 +144,7 @@ async def choose_model(message: Message):
     else:
         buttons = [
             [InlineKeyboardButton(text="Sber GigaChat", callback_data="Sber GigaChat")],
+            [InlineKeyboardButton(text="Sber GigaChat для генерации изображений", callback_data="Sber GigaChat для генерации изображений")],
             [InlineKeyboardButton(text="Deepseek", callback_data="Deepseek")],
             [InlineKeyboardButton(text="DALL-E 3.0", callback_data="DALL-E 3.0")],
             [InlineKeyboardButton(text="dall-e-2", callback_data="dall-e-2")]

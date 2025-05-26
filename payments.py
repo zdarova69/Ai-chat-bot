@@ -42,10 +42,3 @@ class Payments():
     async def check_payment_status(self, payment_id):
         payment = Payment.find_one(payment_id=payment_id)
         return payment['status']
-	
-# a = payment('1','Оплата подписки на бота тест')
-# print(a)
-
-# payment_method_id = a['payment_method']['id']
-# check = Payment.find_one(payment_method_id)
-# print(check)

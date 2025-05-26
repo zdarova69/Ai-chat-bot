@@ -280,22 +280,3 @@ class OpenAIModel():
         messages.append({"role": "assistant", "content": content})
 
         return messages, content
-# # Класс для хранения всех моделей и доступа к ним
-# class ModelRegistry:
-#     async def __init__(self) -> None:
-#         self.models = {
-#             'OpenAI GPT-4.0': OpenAIModel('gpt-4o-mini', "https://api.proxyapi.ru/openai/v1"),
-#             'OpenAI o1': OpenAIModel('o1-mini', "https://api.proxyapi.ru/openai/v1"),
-#             'Google Gemini': OpenAIModel('gemini-1.5-flash', "https://api.proxyapi.ru/google/v1")
-#         }
-
-#     async def get_model(self, name: str) -> Model:
-#         return self.models.get(name)
-
-# # Пример использования
-# model_registry = ModelRegistry()
-# model = model_registry.get_model('OpenAI GPT-4.0')
-
-# if model:
-#     output = model.generate("Hello, world!")
-#     print(output)
